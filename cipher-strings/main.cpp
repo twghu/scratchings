@@ -10,7 +10,11 @@ static char ciphers_string []  =
 
 
 int set_strict_cipher_list(SSL_CTX* ctx, const char* str) {
-    SSL_CTX_set_cipher_list(ctx, str);
+    std::cout << "Processing string " << str << std::endl;
+    if ( !SSL_CTX_set_cipher_list(ctx, str) ) {
+        std::cout << "Error setting cipher list " << std::endl;
+        return 0;
+    }
 
     STACK_OF(SSL_CIPHER)* ciphers = SSL_CTX_get_ciphers(ctx);
     char* dup = strdup(str);
@@ -83,18 +87,26 @@ std::vector<absl::string_view> splitToken(absl::string_view source,
 }
 
 int main() {
-    auto ciphers = splitToken(ciphers_string, ":+![|]", false);
+    {
+        auto list = strdup(ciphers_string);
+        auto ciphers = splitToken(list, ":+![|]", false);
 
-    for (const auto& cipher : ciphers) {
-        std::string cipher_str(cipher);
-        std::cout << "split: " << cipher_str << std::endl;
+        for (const auto &cipher: ciphers) {
+            std::string cipher_str(cipher);
+            std::cout << "split: " << cipher_str << std::endl;
+        }
+        free(list);
     }
 
-    // try strtok
-    char* token = std::strtok(ciphers_string, ":+![|]");
-    while (token != NULL) {
-        std::cout << "strtok: " << token << std::endl;
-        token = std::strtok(NULL, ":[]|");
+    {
+        auto list = strdup(ciphers_string);
+        // try strtok
+        char *token = std::strtok(list, ":+![|]");
+        while (token != NULL) {
+            std::cout << "strtok: " << token << std::endl;
+            token = std::strtok(NULL, ":[]|");
+        }
+        free(list);
     }
 
     // try a SSL_CTX
@@ -107,8 +119,12 @@ int main() {
         std::cout << "Unable to initialize SSL_CTX" << std::endl;
     }
     else {
-        int result = set_strict_cipher_list(ctx, ciphers_string);
+        auto list = strdup(ciphers_string);
+
+        int result = set_strict_cipher_list(ctx, list);
         std::cout << "set_string_cipher_list returned " << result << std::endl;
         SSL_CTX_free(ctx);
+
+        free(list);
     }
 }
